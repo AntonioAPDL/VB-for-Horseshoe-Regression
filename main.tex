@@ -777,5 +777,442 @@ $(\vect{m}_\beta,\mat{\Sigma}_\beta,\tilde a_\sigma,\tilde b_\sigma,\hat{\vect{\
 \end{align}
 where $A$, $S$, $f(\cdot)$, $\hat{\vect{\eta}}$, and $\mat{\Sigma}_\eta$ are as defined above. In practice, one may drop the explicit constants and track only relative changes in $\mathcal{L}(q)$ as a stopping criterion for the VB--LD iterations.
 
+\section{Regularized Horseshoe Scale Block under exAL and AL Likelihoods}
+
+\subsection{Setup and notational conventions}
+
+This section records the full joint expressions for the latent regularized horseshoe (RHS)
+scale parameters under the extended asymmetric Laplace (exAL) likelihood and its
+asymmetric Laplace (AL) special case.
+
+To avoid clashes with notation already used in the document, we adopt the following
+conventions only within this section:
+\begin{itemize}
+  \item the quantile level is denoted by $q \in (0,1)$ (rather than $p$, which is already used above for the number of predictors),
+  \item the slab hyperparameter in the prior for $c^2$ is denoted by $s_0>0$ (rather than $s$, which is reserved below for the exAL latent variables),
+  \item the exAL/AL hierarchy is written in terms of a positive scale parameter $\sigma>0$.
+\end{itemize}
+
+Let $(y_i,\vect{x}_i)$, $i=1,\dots,n$, denote the response--covariate pairs, with
+$\vect{x}_i \in \R^p$, and let
+\begin{equation}
+  Q_q(y_i \mid \vect{x}_i) = \vect{x}_i^\top \vect{\beta},
+  \qquad i=1,\dots,n,
+\end{equation}
+so that $\vect{x}_i^\top \vect{\beta}$ is the conditional $q$-th quantile of $y_i$.
+
+The RHS prior on the regression coefficients is
+\begin{equation}
+  \beta_j \mid \lambda_j,\tau,c^2
+  \sim \N\!\big(0, V_j(\lambda_j,\tau,c^2)\big),
+  \qquad j=1,\dots,p,
+\end{equation}
+with
+\begin{equation}
+  V_j(\lambda_j,\tau,c^2)
+  =
+  \tau^2 \,\frac{c^2 \lambda_j^2}{c^2 + \tau^2 \lambda_j^2},
+  \qquad j=1,\dots,p.
+\end{equation}
+The scale hyperpriors are
+\begin{align}
+  \lambda_j &\sim C^+(0,1), \qquad j=1,\dots,p,\\
+  \tau &\sim C^+(0,\tau_0),\\
+  c^2 &\sim \IG\!\left(\frac{\nu}{2}, \frac{\nu s_0^2}{2}\right),
+\end{align}
+so that, up to normalizing constants,
+\begin{align}
+  p(\lambda_j) &\propto \frac{1}{1+\lambda_j^2}, \qquad \lambda_j>0,\\
+  p(\tau) &\propto \frac{1}{1+\tau^2/\tau_0^2}, \qquad \tau>0,\\
+  p(c^2) &\propto (c^2)^{-(\nu/2+1)}
+  \exp\!\left(-\frac{\nu s_0^2}{2c^2}\right), \qquad c^2>0.
+\end{align}
+
+If an intercept is left unshrunk in the final model, then all products and sums below
+should simply be taken over the coefficients that are assigned the RHS prior.
+
+\subsection{Full joint density under the exAL likelihood}
+
+For the exAL likelihood, introduce the per-observation latent variables
+\[
+  v_i > 0, \qquad s_i > 0, \qquad i=1,\dots,n,
+\]
+and define
+\begin{align}
+  m_i(\vect{\beta},\sigma,\gamma,v_i,s_i)
+  &=
+  \vect{x}_i^\top \vect{\beta}
+  + \sigma C(\gamma)\lvert \gamma \rvert s_i
+  + A(\gamma) v_i,\\
+  \omega_i^2(\sigma,\gamma,v_i)
+  &=
+  \sigma B(\gamma) v_i.
+\end{align}
+Then the exAL hierarchical representation is
+\begin{align}
+  y_i \mid \vect{\beta},\sigma,\gamma,v_i,s_i
+  &\sim \N\!\big(m_i(\vect{\beta},\sigma,\gamma,v_i,s_i),\, \omega_i^2(\sigma,\gamma,v_i)\big),\\
+  v_i \mid \sigma
+  &\sim \mathrm{Exp}(\text{mean}=\sigma),\\
+  s_i
+  &\sim \N^+(0,1),
+\end{align}
+independently across $i=1,\dots,n$.
+
+Writing
+\[
+  \vect{v}=(v_1,\dots,v_n)^\top,
+  \qquad
+  \vect{s}=(s_1,\dots,s_n)^\top,
+  \qquad
+  \vect{\lambda}=(\lambda_1,\dots,\lambda_p)^\top,
+\]
+the full joint density under the exAL likelihood factorizes as
+\begin{align}
+  &p(\vect{y},\vect{v},\vect{s},\vect{\beta},\vect{\lambda},\tau,c^2,\sigma,\gamma)
+  \nonumber\\
+  &\qquad=
+  \left\{
+    \prod_{i=1}^n
+    p(y_i \mid \vect{\beta},\sigma,\gamma,v_i,s_i)
+  \right\}
+  \left\{
+    \prod_{i=1}^n
+    p(v_i \mid \sigma)\,p(s_i)
+  \right\}
+  p(\vect{\beta}\mid \vect{\lambda},\tau,c^2)\,
+  p(\vect{\lambda})\,p(\tau)\,p(c^2)\,p(\sigma)\,p(\gamma).
+\end{align}
+
+More explicitly,
+\begin{align}
+  p(y_i \mid \vect{\beta},\sigma,\gamma,v_i,s_i)
+  &=
+  \frac{1}{\sqrt{2\pi\,\sigma B(\gamma) v_i}}
+  \exp\!\left[
+    -\frac{
+      \big\{
+        y_i - \vect{x}_i^\top \vect{\beta}
+        - \sigma C(\gamma)\lvert\gamma\rvert s_i
+        - A(\gamma) v_i
+      \big\}^2
+    }{
+      2\sigma B(\gamma) v_i
+    }
+  \right],\\
+  p(v_i\mid \sigma)
+  &=
+  \frac{1}{\sigma}\exp\!\left(-\frac{v_i}{\sigma}\right),
+  \qquad v_i>0,\\
+  p(s_i)
+  &=
+  2\phi(s_i),
+  \qquad s_i>0,\\
+  p(\vect{\beta}\mid \vect{\lambda},\tau,c^2)
+  &=
+  \prod_{j=1}^p
+  \frac{1}{\sqrt{2\pi V_j(\lambda_j,\tau,c^2)}}
+  \exp\!\left(
+    -\frac{\beta_j^2}{2V_j(\lambda_j,\tau,c^2)}
+  \right).
+\end{align}
+
+Therefore, up to an additive constant independent of
+$(\vect{\beta},\vect{\lambda},\tau,c^2,\sigma,\gamma,\vect{v},\vect{s})$, the exAL log-joint density is
+\begin{align}
+  &\log p(\vect{y},\vect{v},\vect{s},\vect{\beta},\vect{\lambda},\tau,c^2,\sigma,\gamma)
+  \nonumber\\
+  &\qquad=
+  -\frac{1}{2}\sum_{i=1}^n
+  \left[
+    \log\!\big(\sigma B(\gamma) v_i\big)
+    +
+    \frac{
+      \big\{
+        y_i - \vect{x}_i^\top \vect{\beta}
+        - \sigma C(\gamma)\lvert\gamma\rvert s_i
+        - A(\gamma) v_i
+      \big\}^2
+    }{
+      \sigma B(\gamma) v_i
+    }
+  \right]
+  \nonumber\\
+  &\qquad\quad
+  - \sum_{i=1}^n \left(\log \sigma + \frac{v_i}{\sigma}\right)
+  - \frac{1}{2}\sum_{i=1}^n s_i^2
+  \nonumber\\
+  &\qquad\quad
+  - \frac{1}{2}\sum_{j=1}^p
+  \left[
+    \log V_j(\lambda_j,\tau,c^2)
+    +
+    \frac{\beta_j^2}{V_j(\lambda_j,\tau,c^2)}
+  \right]
+  \nonumber\\
+  &\qquad\quad
+  - \sum_{j=1}^p \log(1+\lambda_j^2)
+  - \log\!\left(1+\frac{\tau^2}{\tau_0^2}\right)
+  - \left(\frac{\nu}{2}+1\right)\log c^2
+  - \frac{\nu s_0^2}{2c^2}
+  \nonumber\\
+  &\qquad\quad
+  + \log p(\sigma) + \log p(\gamma).
+  \label{eq:logjoint-exAL-RHS}
+\end{align}
+
+\subsection{Exact conditional kernel for the RHS scale block under exAL}
+
+The latent RHS scale block is $(\vect{\lambda},\tau,c^2)$. Conditional on $\vect{\beta}$,
+all exAL likelihood terms and all mixture-latent terms are constant with respect to
+$(\vect{\lambda},\tau,c^2)$. Hence,
+\begin{equation}
+  p(\vect{\lambda},\tau,c^2 \mid \vect{\beta},\vect{y},\vect{v},\vect{s},\sigma,\gamma)
+  \propto
+  p(\vect{\beta}\mid \vect{\lambda},\tau,c^2)\,
+  p(\vect{\lambda})\,p(\tau)\,p(c^2).
+\end{equation}
+Therefore,
+\begin{align}
+  &p(\vect{\lambda},\tau,c^2 \mid \vect{\beta},\vect{y},\vect{v},\vect{s},\sigma,\gamma)
+  \nonumber\\
+  &\qquad\propto
+  \left\{
+    \prod_{j=1}^p
+    V_j(\lambda_j,\tau,c^2)^{-1/2}
+    \exp\!\left(
+      -\frac{\beta_j^2}{2V_j(\lambda_j,\tau,c^2)}
+    \right)
+    (1+\lambda_j^2)^{-1}
+  \right\}
+  \left(1+\frac{\tau^2}{\tau_0^2}\right)^{-1}
+  \nonumber\\
+  &\qquad\quad\times
+  (c^2)^{-(\nu/2+1)}
+  \exp\!\left(-\frac{\nu s_0^2}{2c^2}\right).
+  \label{eq:rhs-kernel-exAL}
+\end{align}
+Equivalently, up to an additive constant,
+\begin{align}
+  &\log p(\vect{\lambda},\tau,c^2 \mid \vect{\beta},\vect{y},\vect{v},\vect{s},\sigma,\gamma)
+  \nonumber\\
+  &\qquad=
+  - \frac{1}{2}\sum_{j=1}^p
+  \left[
+    \log V_j(\lambda_j,\tau,c^2)
+    + \frac{\beta_j^2}{V_j(\lambda_j,\tau,c^2)}
+  \right]
+  - \sum_{j=1}^p \log(1+\lambda_j^2)
+  \nonumber\\
+  &\qquad\quad
+  - \log\!\left(1+\frac{\tau^2}{\tau_0^2}\right)
+  - \left(\frac{\nu}{2}+1\right)\log c^2
+  - \frac{\nu s_0^2}{2c^2}.
+  \label{eq:rhs-logkernel-exAL}
+\end{align}
+
+A useful identity is
+\begin{equation}
+  \frac{1}{V_j(\lambda_j,\tau,c^2)}
+  =
+  \frac{c^2+\tau^2\lambda_j^2}{\tau^2 c^2 \lambda_j^2}
+  =
+  \frac{1}{\tau^2\lambda_j^2} + \frac{1}{c^2}.
+  \label{eq:Vinv-identity}
+\end{equation}
+
+\subsection{Log-scale representation of the RHS block}
+
+For Laplace--Delta calculations it is convenient to work on the unconstrained coordinates
+\begin{align}
+  u_j &= \log \lambda_j, \qquad j=1,\dots,p,\\
+  u_\tau &= \log \tau,\\
+  u_\kappa &= \log c^2,
+\end{align}
+and to collect them as
+\[
+  \vect{\eta}
+  =
+  (u_1,\dots,u_p,u_\tau,u_\kappa)^\top \in \R^{p+2}.
+\]
+Under this transformation,
+\begin{equation}
+  \lambda_j = e^{u_j},
+  \qquad
+  \tau = e^{u_\tau},
+  \qquad
+  c^2 = e^{u_\kappa},
+\end{equation}
+and the Jacobian determinant is
+\begin{equation}
+  \left|
+    \frac{\partial(\lambda_1,\dots,\lambda_p,\tau,c^2)}{\partial \vect{\eta}}
+  \right|
+  =
+  \exp\!\left(\sum_{j=1}^p u_j + u_\tau + u_\kappa\right).
+\end{equation}
+
+Define
+\begin{align}
+  g_j(\vect{\eta})
+  &:=
+  e^{-2u_j-2u_\tau} + e^{-u_\kappa},
+  \qquad j=1,\dots,p.
+\end{align}
+By \eqref{eq:Vinv-identity},
+\begin{equation}
+  g_j(\vect{\eta})
+  =
+  \frac{1}{V_j(\lambda_j,\tau,c^2)},
+  \qquad
+  V_j(\lambda_j,\tau,c^2)=\frac{1}{g_j(\vect{\eta})}.
+\end{equation}
+
+Hence the exact transformed log-kernel for the RHS block is
+\begin{align}
+  f_{\mathrm{RHS}}(\vect{\eta}\mid \vect{\beta})
+  &=
+  \log p(\vect{\lambda},\tau,c^2\mid \vect{\beta})
+  +
+  \log\left|
+    \frac{\partial(\lambda_1,\dots,\lambda_p,\tau,c^2)}{\partial \vect{\eta}}
+  \right|
+  + \text{const}
+  \nonumber\\
+  &=
+  \sum_{j=1}^p
+  \left[
+    \frac{1}{2}\log g_j(\vect{\eta})
+    - \frac{1}{2}\beta_j^2 g_j(\vect{\eta})
+    - \log\!\big(1+e^{2u_j}\big)
+    + u_j
+  \right]
+  \nonumber\\
+  &\quad
+  - \log\!\big(\tau_0^2 + e^{2u_\tau}\big)
+  - \frac{\nu}{2}u_\kappa
+  - \frac{\nu s_0^2}{2}e^{-u_\kappa}
+  + u_\tau
+  + \text{const}.
+  \label{eq:rhs-logtarget-transformed}
+\end{align}
+
+For variational Bayes, if one needs the corresponding expected target under a Gaussian
+factor $q_\beta(\vect{\beta})$, one simply replaces $\beta_j^2$ in
+\eqref{eq:rhs-logtarget-transformed} by
+\begin{equation}
+  S_j := \E_{q_\beta}[\beta_j^2],
+  \qquad j=1,\dots,p.
+\end{equation}
+
+\subsection{AL likelihood as a special case}
+
+At a fixed quantile level $q \in (0,1)$, define the standard AL constants
+\begin{equation}
+  A_q = \frac{1-2q}{q(1-q)},
+  \qquad
+  B_q = \frac{2}{q(1-q)}.
+\end{equation}
+Under the AL working likelihood,
+\begin{align}
+  y_i \mid \vect{\beta},\sigma,v_i
+  &\sim
+  \N\!\big(\vect{x}_i^\top \vect{\beta} + A_q v_i,\,
+  \sigma B_q v_i\big),\\
+  v_i \mid \sigma
+  &\sim \mathrm{Exp}(\text{mean}=\sigma),
+\end{align}
+independently across $i=1,\dots,n$.
+
+The full joint density under the AL likelihood is then
+\begin{align}
+  &p(\vect{y},\vect{v},\vect{\beta},\vect{\lambda},\tau,c^2,\sigma)
+  \nonumber\\
+  &\qquad=
+  \left\{
+    \prod_{i=1}^n
+    p(y_i \mid \vect{\beta},\sigma,v_i)
+  \right\}
+  \left\{
+    \prod_{i=1}^n
+    p(v_i\mid \sigma)
+  \right\}
+  p(\vect{\beta}\mid \vect{\lambda},\tau,c^2)\,
+  p(\vect{\lambda})\,p(\tau)\,p(c^2)\,p(\sigma),
+\end{align}
+with
+\begin{equation}
+  p(y_i \mid \vect{\beta},\sigma,v_i)
+  =
+  \frac{1}{\sqrt{2\pi\,\sigma B_q v_i}}
+  \exp\!\left[
+    -\frac{
+      \big(
+        y_i - \vect{x}_i^\top \vect{\beta} - A_q v_i
+      \big)^2
+    }{
+      2\sigma B_q v_i
+    }
+  \right].
+\end{equation}
+Thus, up to an additive constant,
+\begin{align}
+  &\log p(\vect{y},\vect{v},\vect{\beta},\vect{\lambda},\tau,c^2,\sigma)
+  \nonumber\\
+  &\qquad=
+  -\frac{1}{2}\sum_{i=1}^n
+  \left[
+    \log(\sigma B_q v_i)
+    +
+    \frac{
+      \big(
+        y_i - \vect{x}_i^\top \vect{\beta} - A_q v_i
+      \big)^2
+    }{
+      \sigma B_q v_i
+    }
+  \right]
+  \nonumber\\
+  &\qquad\quad
+  - \sum_{i=1}^n \left(\log \sigma + \frac{v_i}{\sigma}\right)
+  - \frac{1}{2}\sum_{j=1}^p
+  \left[
+    \log V_j(\lambda_j,\tau,c^2)
+    +
+    \frac{\beta_j^2}{V_j(\lambda_j,\tau,c^2)}
+  \right]
+  \nonumber\\
+  &\qquad\quad
+  - \sum_{j=1}^p \log(1+\lambda_j^2)
+  - \log\!\left(1+\frac{\tau^2}{\tau_0^2}\right)
+  - \left(\frac{\nu}{2}+1\right)\log c^2
+  - \frac{\nu s_0^2}{2c^2}
+  + \log p(\sigma).
+  \label{eq:logjoint-AL-RHS}
+\end{align}
+
+\subsection{Exact conditional kernel for the RHS scale block under AL}
+
+Under the AL likelihood, conditional on $\vect{\beta}$, the RHS scale block again separates
+from the likelihood:
+\begin{equation}
+  p(\vect{\lambda},\tau,c^2 \mid \vect{\beta},\vect{y},\vect{v},\sigma)
+  \propto
+  p(\vect{\beta}\mid \vect{\lambda},\tau,c^2)\,
+  p(\vect{\lambda})\,p(\tau)\,p(c^2).
+\end{equation}
+Therefore,
+\begin{equation}
+  p(\vect{\lambda},\tau,c^2 \mid \vect{\beta},\vect{y},\vect{v},\sigma)
+  \propto
+  p(\vect{\lambda},\tau,c^2 \mid \vect{\beta},\vect{y},\vect{v},\vect{s},\sigma,\gamma)
+\end{equation}
+and the exact AL conditional kernel is identical to
+\eqref{eq:rhs-kernel-exAL}--\eqref{eq:rhs-logkernel-exAL}. Equivalently, the transformed
+log-target in \eqref{eq:rhs-logtarget-transformed} is unchanged.
+
+In particular, the difference between the exAL and AL formulations lies in the likelihood
+and in the auxiliary-latent structure $(\vect{v},\vect{s},\gamma)$, but \emph{not} in the
+exact conditional algebra of the RHS latent scale block once $\vect{\beta}$ is held fixed.
 
 \end{document}
