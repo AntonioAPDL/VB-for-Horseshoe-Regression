@@ -1,0 +1,781 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,bm}
+\usepackage{mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{booktabs}
+
+\onehalfspacing
+
+% Notation: bold lower-case = vectors, bold upper-case = matrices
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+\newcommand{\mat}[1]{\mathbf{#1}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathbb{V}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\IG}{\mathrm{Inv\text{-}Gamma}}
+\newcommand{\N}{\mathcal{N}}
+
+\title{Regularized Horseshoe Regression with Variational Bayes and Laplace--Delta Approximation}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Model Specification}
+
+\subsection{Data and Likelihood}
+
+Let
+\begin{itemize}
+  \item $n \in \mathbb{N}$ be the number of observations,
+  \item $p \in \mathbb{N}$ be the number of predictors,
+  \item $\vect{y} \in \R^n$ be the response vector,
+  \item $\mat{X} \in \R^{n \times p}$ be the design matrix, with $i$-th row $\vect{x}_i^\top \in \R^{1 \times p}$,
+  \item $\vect{\beta} \in \R^p$ be the regression coefficient vector,
+  \item $\sigma^2 \in (0,\infty)$ be the observation noise variance.
+\end{itemize}
+
+The Gaussian linear regression model is
+\begin{align}
+  y_i \mid \vect{\beta}, \sigma^2 
+  &\sim \N\big(\vect{x}_i^\top \vect{\beta}, \,\sigma^2\big),
+  \quad i = 1,\dots,n, \\
+  \vect{y} \mid \vect{\beta}, \sigma^2
+  &\sim \N_n\big(\mat{X}\vect{\beta},\, \sigma^2 \mat{I}_n\big),
+\end{align}
+where $\mat{I}_n$ denotes the $n \times n$ identity matrix.
+
+\subsection{Regularized Horseshoe Prior}
+
+We introduce a global--local prior on $\vect{\beta}$ via the \emph{regularized horseshoe}. For $j=1,\dots,p$:
+
+\begin{itemize}
+  \item Local scale: $\lambda_j > 0$,
+  \item Global scale: $\tau > 0$,
+  \item Slab scale: $c^2 > 0$.
+\end{itemize}
+
+Define the prior variance of $\beta_j$ as
+\begin{equation}
+  V_j(\lambda_j, \tau, c^2)
+  \;=\;
+  \tau^2 \,\frac{c^2 \lambda_j^2}{c^2 + \tau^2 \lambda_j^2},
+  \quad j = 1,\dots,p.
+\end{equation}
+Then
+\begin{equation}
+  \beta_j \mid \lambda_j,\tau,c^2 \;\sim\; \N\big(0,\, V_j(\lambda_j,\tau,c^2)\big),
+  \quad j=1,\dots,p,
+\end{equation}
+independently across $j$.
+
+The hierarchical prior on scales is:
+\begin{align}
+  \lambda_j &\sim C^+(0,1), 
+  & j &= 1,\dots,p, \\
+  \tau &\sim C^+(0,\tau_0^2), \\
+  c^2 &\sim \IG\!\left(\frac{\nu}{2},\, \frac{\nu s^2}{2}\right),
+\end{align}
+where $C^+(0,a^2)$ denotes a half-Cauchy distribution with scale $a>0$, and $\IG(a,b)$ is the inverse-gamma distribution with density
+\begin{equation}
+  p(z) \propto z^{-a-1} \exp\!\left(-\frac{b}{z}\right), \quad z>0.
+\end{equation}
+The hyperparameters $\tau_0>0$, $\nu>0$, and $s>0$ encode prior information about sparsity and the slab scale.
+
+For the noise variance we assume
+\begin{equation}
+  \sigma^2 \sim \IG(a_\sigma,b_\sigma), \qquad a_\sigma>0,\; b_\sigma>0.
+\end{equation}
+
+\subsection{Summary of Unknowns and Dimensions}
+
+The full parameter vector is
+\[
+  \theta 
+  = \big(\vect{\beta},\, \sigma^2,\, \lambda_1,\dots,\lambda_p,\, \tau,\, c^2\big),
+\]
+with dimensions:
+\begin{itemize}
+  \item $\vect{\beta} \in \R^p$,
+  \item $\sigma^2 \in (0,\infty)$,
+  \item $\lambda_j \in (0,\infty)$ for $j=1,\dots,p$,
+  \item $\tau \in (0,\infty)$,
+  \item $c^2 \in (0,\infty)$.
+\end{itemize}
+
+\section{Mean-Field Variational Approximation}
+
+\subsection{Factorization}
+
+We approximate the posterior $p(\theta \mid \vect{y})$ with a mean-field family
+\begin{equation}
+  q(\theta)
+  \;=\;
+  q_{\beta}(\vect{\beta})\, q_{\sigma}(\sigma^2)\, q_{\eta}(\vect{\eta}),
+\end{equation}
+where:
+\begin{itemize}
+  \item $q_\beta(\vect{\beta})$ approximates the marginal posterior of $\vect{\beta}$,
+  \item $q_\sigma(\sigma^2)$ approximates the marginal posterior of $\sigma^2$,
+  \item $q_\eta(\vect{\eta})$ approximates the joint posterior of the scale parameters,
+\[
+  \vect{\eta} \;=\; 
+  \big(u_1,\dots,u_p,u_\tau,u_\kappa\big)^\top \in \R^{p+2}.
+\]
+\end{itemize}
+
+We work in \emph{log-scale} for the non-conjugate block:
+\begin{align}
+  u_j &= \log \lambda_j,      & j &= 1,\dots,p, \\
+  u_\tau &= \log \tau, \\
+  u_\kappa &= \log c^2.
+\end{align}
+Thus,
+\begin{align}
+  \lambda_j &= e^{u_j},
+  & \tau &= e^{u_\tau}, 
+  & c^2 &= e^{u_\kappa}.
+\end{align}
+
+\subsection{Coordinate Ascent Variational Inference (CAVI)}
+
+Let $\mathcal{L}(q)$ denote the evidence lower bound (ELBO)
+\[
+  \mathcal{L}(q) = \E_q[\log p(\vect{y},\theta)] - \E_q[\log q(\theta)].
+\]
+CAVI updates each factor by
+\begin{align}
+  \log q_\beta^*(\vect{\beta})
+  &= \E_{q_\sigma q_\eta}[\log p(\vect{y},\theta)] + \text{const}, \\
+  \log q_\sigma^*(\sigma^2)
+  &= \E_{q_\beta q_\eta}[\log p(\vect{y},\theta)] + \text{const}, \\
+  \log q_\eta^*(\vect{\eta})
+  &= \E_{q_\beta q_\sigma}[\log p(\vect{y},\theta)] + \text{const}.
+\end{align}
+
+The first two updates are conjugate and yield closed forms. The third is non-conjugate; we approximate $q_\eta$ via a Laplace approximation in $\vect{\eta}$-space and use a Delta method for the required moments.
+
+\section{Conjugate Variational Updates}
+
+\subsection{Update for $q_\sigma(\sigma^2)$}
+
+Given $q_\beta(\vect{\beta})$, the terms involving $\sigma^2$ are
+\begin{align}
+  \log p(\vect{y} \mid \vect{\beta},\sigma^2)
+  &=
+  -\frac{n}{2}\log(2\pi\sigma^2)
+  -\frac{1}{2\sigma^2} \Vert \vect{y} - \mat{X}\vect{\beta} \Vert^2,\\
+  \log p(\sigma^2)
+  &=
+  -(a_\sigma+1)\log \sigma^2 - \frac{b_\sigma}{\sigma^2} + \text{const}.
+\end{align}
+Taking expectation w.r.t.\ $q_\beta$ and collecting terms yields
+\begin{equation}
+  q_\sigma(\sigma^2)
+  = \IG\big(\tilde{a}_\sigma, \tilde{b}_\sigma\big),
+\end{equation}
+with
+\begin{align}
+  \tilde{a}_\sigma 
+  &= a_\sigma + \frac{n}{2},\\
+  \tilde{b}_\sigma 
+  &= b_\sigma + \frac{1}{2} S,
+\end{align}
+where
+\begin{equation}
+  S = \E_{q_\beta}\big[\Vert \vect{y} - \mat{X}\vect{\beta} \Vert^2\big]
+    = \Vert \vect{y} - \mat{X}\vect{m}_\beta \Vert^2
+      + \mathrm{tr}\big( \mat{X}\mat{\Sigma}_\beta \mat{X}^\top \big),
+\end{equation}
+and we denote
+\[
+  \vect{m}_\beta = \E_{q_\beta}[\vect{\beta}], 
+  \quad \mat{\Sigma}_\beta = \Var_{q_\beta}(\vect{\beta}).
+\]
+
+We will need
+\begin{equation}
+  A := \E_{q_\sigma}\left[\frac{1}{\sigma^2}\right]
+  = \frac{\tilde{a}_\sigma}{\tilde{b}_\sigma}.
+\end{equation}
+
+\subsection{Update for $q_\beta(\vect{\beta})$}
+
+The terms involving $\vect{\beta}$ are
+\begin{align}
+  \log p(\vect{y} \mid \vect{\beta},\sigma^2)
+  &= -\frac{n}{2}\log(2\pi\sigma^2)
+     - \frac{1}{2\sigma^2}\Vert \vect{y} - \mat{X}\vect{\beta} \Vert^2,\\
+  \log p(\vect{\beta} \mid \lambda_{1:p},\tau,c^2)
+  &= -\frac12 \sum_{j=1}^p 
+     \left( \log(2\pi V_j) + \frac{\beta_j^2}{V_j} \right),
+\end{align}
+where $V_j = V_j(\lambda_j,\tau,c^2)$.
+
+Taking expectations w.r.t.\ $q_\sigma$ and $q_\eta$, define
+\begin{equation}
+  D_j := \E_{q_\eta} \left[\frac{1}{V_j(\lambda_j,\tau,c^2)}\right],
+  \quad j=1,\dots,p.
+\end{equation}
+Then
+\begin{equation}
+  \log q_\beta^*(\vect{\beta})
+  \propto
+  -\frac{A}{2}\Vert \vect{y} - \mat{X}\vect{\beta} \Vert^2 
+  -\frac12 \sum_{j=1}^p D_j \beta_j^2,
+\end{equation}
+which is the log-density of a multivariate Gaussian. Therefore,
+\begin{equation}
+  q_\beta(\vect{\beta})
+  = \N_p\big(\vect{m}_\beta, \mat{\Sigma}_\beta\big),
+\end{equation}
+with
+\begin{align}
+  \mat{\Sigma}_\beta
+  &= \left(
+      A\,\mat{X}^\top \mat{X} 
+      + \mathrm{diag}(D_1,\dots,D_p)
+    \right)^{-1}, \\
+  \vect{m}_\beta
+  &= \mat{\Sigma}_\beta \, A\, \mat{X}^\top \vect{y}.
+\end{align}
+
+\section{Non-Conjugate Block and Laplace--Delta Approximation}
+
+\subsection{Reparameterization and Basic Identities}
+
+Recall:
+\begin{align}
+  \lambda_j &= e^{u_j},      & j &= 1,\dots,p, \\
+  \tau      &= e^{u_\tau}, \\
+  c^2       &= e^{u_\kappa}.
+\end{align}
+A key simplification arises from
+\begin{equation}
+  \frac{1}{V_j(\lambda_j,\tau,c^2)}
+  = \frac{c^2 + \tau^2 \lambda_j^2}{\tau^2 c^2 \lambda_j^2}
+  = \frac{1}{\tau^2 \lambda_j^2} + \frac{1}{c^2}.
+\end{equation}
+Define
+\begin{align}
+  T_j &= e^{-2u_j - 2u_\tau}, \\
+  R   &= e^{-u_\kappa}, \\
+  g_j &= T_j + R = \frac{1}{V_j(\boldsymbol{\eta})}.
+\end{align}
+Then $V_j(\boldsymbol{\eta}) = 1 / g_j$.
+
+We also write
+\begin{equation}
+  S_j := \E_{q_\beta}[\beta_j^2]
+       = m_{\beta,j}^2 + \Sigma_{\beta,jj},
+  \quad j=1,\dots,p,
+\end{equation}
+where $m_{\beta,j}$ is the $j$-th component of $\vect{m}_\beta$ and $\Sigma_{\beta,jj}$ is the $j$-th diagonal entry of $\mat{\Sigma}_\beta$.
+
+\subsection{Log-Target $f(\boldsymbol{\eta})$}
+
+The optimal variational factor (up to a constant) is
+\begin{equation}
+  \log q_\eta^*(\vect{\eta})
+  = \E_{q_\beta q_\sigma}[\log p(\vect{y},\theta)]
+    + \log \left|\frac{\partial(\lambda_{1:p},\tau,c^2)}{\partial \vect{\eta}} \right|
+    + \text{const}.
+\end{equation}
+After algebra and dropping constants independent of $\vect{\eta}$, we obtain
+\begin{equation}
+  f(\vect{\eta}) \;\propto\; \sum_{j=1}^p f_j(u_j,u_\tau,u_\kappa) 
+  + f_{\mathrm{global}}(u_\tau,u_\kappa),
+\end{equation}
+with
+\begin{align}
+  f_j(u_j,u_\tau,u_\kappa)
+  &=
+  \frac12 \log g_j
+  - \frac12 S_j g_j
+  - \log\big(1+e^{2u_j}\big)
+  + u_j, \label{eq:fj-def}\\[3pt]
+  f_{\mathrm{global}}(u_\tau,u_\kappa)
+  &=
+  -\log\big(\tau_0^2 + e^{2u_\tau}\big)
+  -\Big(\frac{\nu}{2}+1\Big)u_\kappa
+  -\frac{\nu s^2}{2}e^{-u_\kappa}
+  + u_\tau + u_\kappa. \label{eq:fglobal-def}
+\end{align}
+Here
+\begin{equation}
+  g_j 
+  = e^{-2u_j-2u_\tau} + e^{-u_\kappa} 
+  = T_j + R.
+\end{equation}
+
+Thus, explicitly,
+\begin{align}
+  f(\vect{\eta})
+  &= \sum_{j=1}^p 
+  \left[
+    \frac12 \log\big(e^{-2u_j-2u_\tau} + e^{-u_\kappa}\big)
+    - \frac12 S_j \big(e^{-2u_j-2u_\tau} + e^{-u_\kappa}\big)
+    - \log\big(1+e^{2u_j}\big)
+    + u_j
+  \right] \nonumber\\
+  &\quad -\log\big(\tau_0^2 + e^{2u_\tau}\big)
+  -\Big(\frac{\nu}{2}+1\Big)u_\kappa
+  -\frac{\nu s^2}{2}e^{-u_\kappa}
+  + u_\tau + u_\kappa
+  + \text{const}.
+\end{align}
+
+In the VB--LD scheme, we treat
+\begin{equation}
+  q_\eta(\vect{\eta}) \;\propto\; \exp\big(f(\vect{\eta})\big)
+\end{equation}
+as the target for the Laplace approximation.
+
+\subsection{Gradient $\nabla f(\boldsymbol{\eta})$}
+
+We now derive explicit expressions for $\nabla f(\vect{\eta})$.
+
+\subsubsection*{Derivative with respect to $u_j$}
+
+For a fixed $j$,
+\[
+  f_j(u_j,u_\tau,u_\kappa)
+  = \frac12 \log g_j
+  - \frac12 S_j g_j
+  - \log(1+e^{2u_j})
+  + u_j,
+\]
+with
+\[
+  g_j = T_j + R = e^{-2u_j-2u_\tau} + e^{-u_\kappa}.
+\]
+The derivative of $g_j$ w.r.t.\ $u_j$ is
+\[
+  \frac{\partial g_j}{\partial u_j}
+  = -2 e^{-2u_j-2u_\tau}
+  = -2 T_j.
+\]
+Then
+\begin{align}
+  \frac{\partial f_j}{\partial u_j}
+  &= \frac12 \frac{1}{g_j}\frac{\partial g_j}{\partial u_j}
+     - \frac12 S_j \frac{\partial g_j}{\partial u_j}
+     - \frac{2 e^{2u_j}}{1+e^{2u_j}}
+     + 1 \\
+  &= \frac12 \frac{-2T_j}{g_j}
+     - \frac12 S_j(-2T_j)
+     - \frac{2 e^{2u_j}}{1+e^{2u_j}}
+     + 1 \\
+  &= -\frac{T_j}{g_j} + S_j T_j
+     - \frac{2 e^{2u_j}}{1+e^{2u_j}} + 1.
+\end{align}
+No other term depends on $u_j$, so
+\begin{equation}
+  \boxed{
+  \frac{\partial f}{\partial u_j}
+  = -\frac{T_j}{g_j} + S_j T_j
+    - \frac{2 e^{2u_j}}{1+e^{2u_j}} + 1,
+  \quad j=1,\dots,p.
+  }
+\end{equation}
+
+\subsubsection*{Derivative with respect to $u_\tau$}
+
+For each $j$, $f_j$ depends on $u_\tau$ only through $g_j$:
+\[
+  \frac{\partial g_j}{\partial u_\tau}
+  = -2 e^{-2u_j-2u_\tau}
+  = -2T_j.
+\]
+Thus,
+\begin{align}
+  \frac{\partial f_j}{\partial u_\tau}
+  &= \frac12 \frac{1}{g_j}\frac{\partial g_j}{\partial u_\tau}
+     - \frac12 S_j \frac{\partial g_j}{\partial u_\tau}
+  = -\frac{T_j}{g_j} + S_j T_j.
+\end{align}
+
+For the global term,
+\[
+  f_{\mathrm{global}}(u_\tau,u_\kappa)
+  = -\log(\tau_0^2 + e^{2u_\tau})
+    + u_\tau + \text{(terms independent of $u_\tau$)},
+\]
+so
+\begin{align}
+  \frac{\partial f_{\mathrm{global}}}{\partial u_\tau}
+  &= -\frac{2 e^{2u_\tau}}{\tau_0^2 + e^{2u_\tau}} + 1.
+\end{align}
+Therefore
+\begin{equation}
+  \boxed{
+  \frac{\partial f}{\partial u_\tau}
+  = \sum_{j=1}^p \left(-\frac{T_j}{g_j} + S_j T_j\right)
+    + 1 - \frac{2 e^{2u_\tau}}{\tau_0^2 + e^{2u_\tau}}.
+  }
+\end{equation}
+
+\subsubsection*{Derivative with respect to $u_\kappa$}
+
+Again
+\[
+  g_j = T_j + R, \quad R = e^{-u_\kappa},
+\]
+and
+\[
+  \frac{\partial g_j}{\partial u_\kappa}
+  = -R.
+\]
+Thus, for each $j$,
+\begin{align}
+  \frac{\partial f_j}{\partial u_\kappa}
+  &= \frac12 \frac{1}{g_j}\frac{\partial g_j}{\partial u_\kappa}
+     - \frac12 S_j \frac{\partial g_j}{\partial u_\kappa} \\
+  &= \frac12 \frac{-R}{g_j}
+     - \frac12 S_j (-R) \\
+  &= -\frac{R}{2g_j} + \frac{S_j R}{2}.
+\end{align}
+
+For the global term
+\[
+  f_{\mathrm{global}}(u_\tau,u_\kappa)
+  = -\Big(\frac{\nu}{2}+1\Big)u_\kappa
+    -\frac{\nu s^2}{2}e^{-u_\kappa}
+    + u_\kappa + \text{(terms independent of $u_\kappa$)},
+\]
+we have
+\begin{equation}
+  \frac{\partial f_{\mathrm{global}}}{\partial u_\kappa}
+  = -\Big(\frac{\nu}{2}+1\Big)
+    + \frac{\nu s^2}{2}e^{-u_\kappa}
+    + 1
+  = -\frac{\nu}{2} + \frac{\nu s^2}{2}e^{-u_\kappa}.
+\end{equation}
+
+Summing over $j$:
+\begin{equation}
+  \boxed{
+  \frac{\partial f}{\partial u_\kappa}
+  = \sum_{j=1}^p\left(
+      -\frac{R}{2g_j} + \frac{S_j R}{2}
+    \right)
+    -\frac{\nu}{2}
+    + \frac{\nu s^2}{2}e^{-u_\kappa},
+  }
+\end{equation}
+with $R = e^{-u_\kappa}$ and $g_j = e^{-2u_j-2u_\tau} + e^{-u_\kappa}$.
+
+\subsection{Laplace Approximation for $q_\eta$}
+
+Given the current $S_j$ (from $q_\beta$), the non-conjugate update is
+\begin{equation}
+  q_\eta(\vect{\eta})
+  \propto \exp\big(f(\vect{\eta})\big).
+\end{equation}
+
+The Laplace approximation finds the mode
+\begin{equation}
+  \hat{\vect{\eta}} = \arg\max_{\vect{\eta} \in \R^{p+2}} f(\vect{\eta})
+\end{equation}
+using Newton iterations:
+\begin{equation}
+  \vect{\eta}^{(t+1)} 
+  = \vect{\eta}^{(t)} - \left[\nabla^2 f(\vect{\eta}^{(t)})\right]^{-1} \nabla f(\vect{\eta}^{(t)}).
+\end{equation}
+At convergence, compute the Hessian $\nabla^2 f(\hat{\vect{\eta}})$ (e.g.\ via automatic differentiation) and set
+\begin{equation}
+  \mat{\Sigma}_\eta
+  = -\left[\nabla^2 f(\hat{\vect{\eta}})\right]^{-1}.
+\end{equation}
+Then we approximate
+\begin{equation}
+  q_\eta(\vect{\eta})
+  \approx \N\big(\hat{\vect{\eta}}, \mat{\Sigma}_\eta\big).
+\end{equation}
+
+\subsection{Delta Approximation for $D_j$}
+
+The conjugate update for $q_\beta$ requires
+\begin{equation}
+  D_j = \E_{q_\eta}\left[\frac{1}{V_j(\vect{\eta})}\right]
+      = \E_{q_\eta}[g_j(\vect{\eta})],
+\end{equation}
+where
+\begin{equation}
+  g_j(\vect{\eta}) = \frac{1}{V_j(\vect{\eta})}
+  = e^{-2u_j-2u_\tau} + e^{-u_\kappa} = T_j + R,
+\end{equation}
+with
+\begin{equation}
+  T_j = e^{-2u_j-2u_\tau}, 
+  \qquad
+  R   = e^{-u_\kappa}.
+\end{equation}
+
+Under the Gaussian approximation $q_\eta \approx \N(\hat{\vect{\eta}},\mat{\Sigma}_\eta)$, the second-order Delta method gives
+\begin{equation}
+  D_j \;\approx\;
+  g_j(\hat{\vect{\eta}})
+  + \frac12 \mathrm{tr}\big( \nabla^2 g_j(\hat{\vect{\eta}})\, \mat{\Sigma}_\eta \big),
+\end{equation}
+where $\nabla^2 g_j$ denotes the Hessian of $g_j$ with respect to the log-scale parameters $\vect{\eta}$.
+
+The function $g_j$ depends only on the three components $(u_j,u_\tau,u_\kappa)$:
+\[
+  g_j(u_j,u_\tau,u_\kappa) = e^{-2u_j-2u_\tau} + e^{-u_\kappa},
+\]
+so the Hessian $\nabla^2 g_j$ is zero outside the $3\times3$ block corresponding to $(u_j,u_\tau,u_\kappa)$. Ordering these coordinates as $(u_j,u_\tau,u_\kappa)$, the non-zero block is
+\begin{equation}
+  \nabla^2 g_j(u_j,u_\tau,u_\kappa)
+  =
+  \begin{pmatrix}
+    \displaystyle \frac{\partial^2 g_j}{\partial u_j^2} &
+    \displaystyle \frac{\partial^2 g_j}{\partial u_j \partial u_\tau} &
+    \displaystyle \frac{\partial^2 g_j}{\partial u_j \partial u_\kappa} \\[6pt]
+    \displaystyle \frac{\partial^2 g_j}{\partial u_\tau \partial u_j} &
+    \displaystyle \frac{\partial^2 g_j}{\partial u_\tau^2} &
+    \displaystyle \frac{\partial^2 g_j}{\partial u_\tau \partial u_\kappa} \\[6pt]
+    \displaystyle \frac{\partial^2 g_j}{\partial u_\kappa \partial u_j} &
+    \displaystyle \frac{\partial^2 g_j}{\partial u_\kappa \partial u_\tau} &
+    \displaystyle \frac{\partial^2 g_j}{\partial u_\kappa^2}
+  \end{pmatrix}
+  =
+  \begin{pmatrix}
+    4T_j & 4T_j & 0 \\
+    4T_j & 4T_j & 0 \\
+    0    & 0    & R
+  \end{pmatrix},
+\end{equation}
+i.e.
+\begin{equation}
+  \nabla^2 g_j(u_j,u_\tau,u_\kappa)
+  =
+  \begin{pmatrix}
+    4 e^{-2u_j-2u_\tau} & 4 e^{-2u_j-2u_\tau} & 0 \\
+    4 e^{-2u_j-2u_\tau} & 4 e^{-2u_j-2u_\tau} & 0 \\
+    0                   & 0                   & e^{-u_\kappa}
+  \end{pmatrix}.
+\end{equation}
+Therefore, in the Delta approximation, only this $3\times3$ block of $\nabla^2 g_j(\hat{\vect{\eta}})$ and the corresponding $3\times3$ block of the covariance matrix $\mat{\Sigma}_\eta$ contribute to the trace term in
+\[
+  D_j \;\approx\;
+  g_j(\hat{\vect{\eta}})
+  + \frac12 \mathrm{tr}\big( \nabla^2 g_j(\hat{\vect{\eta}})\, \mat{\Sigma}_\eta \big).
+\]
+
+\section{VB--LD Algorithm (Compact Description)}
+
+\begin{algorithm}[h]
+\caption{VB with Laplace--Delta (VB--LD) for Regularized Horseshoe Regression}
+\begin{algorithmic}[1]
+\State Initialize $q_\beta^{(0)}(\vect{\beta}) = \N(\vect{m}_\beta^{(0)},\mat{\Sigma}_\beta^{(0)})$, 
+       $q_\sigma^{(0)}(\sigma^2) = \IG(\tilde{a}_\sigma^{(0)},\tilde{b}_\sigma^{(0)})$,
+       and $\hat{\vect{\eta}}^{(0)}$.
+\For{$k = 0,1,2,\dots$ until convergence}
+  \State \textbf{(Delta step)} Given $q_\eta^{(k)} \approx \N(\hat{\vect{\eta}}^{(k)},\mat{\Sigma}_\eta^{(k)})$, compute
+    \[
+      D_j^{(k)} \approx g_j(\hat{\vect{\eta}}^{(k)}) 
+      + \frac12 \mathrm{tr}\big(\nabla^2 g_j(\hat{\vect{\eta}}^{(k)}) \mat{\Sigma}_\eta^{(k)}\big),
+      \quad j=1,\dots,p.
+    \]
+  \State \textbf{(Update $q_\beta$)} Compute
+    \[
+      A^{(k)} = \frac{\tilde{a}_\sigma^{(k)}}{\tilde{b}_\sigma^{(k)}},
+    \]
+    and update
+    \[
+      \mat{\Sigma}_\beta^{(k+1)} 
+      = \left(A^{(k)}\mat{X}^\top\mat{X} + \mathrm{diag}(D_1^{(k)},\dots,D_p^{(k)})\right)^{-1},
+    \]
+    \[
+      \vect{m}_\beta^{(k+1)} 
+      = \mat{\Sigma}_\beta^{(k+1)} A^{(k)} \mat{X}^\top \vect{y}.
+    \]
+  \State \textbf{(Update $q_\sigma$)} Compute
+    \[
+      S^{(k+1)} = \Vert \vect{y} - \mat{X}\vect{m}_\beta^{(k+1)} \Vert^2
+      + \mathrm{tr}\big(\mat{X}\mat{\Sigma}_\beta^{(k+1)}\mat{X}^\top\big),
+    \]
+    and set
+    \[
+      \tilde{a}_\sigma^{(k+1)} = a_\sigma + \frac{n}{2}, \quad
+      \tilde{b}_\sigma^{(k+1)} = b_\sigma + \frac{S^{(k+1)}}{2}.
+    \]
+  \State \textbf{(Laplace step for $q_\eta$)} 
+    \Statex \quad (a) Compute $S_j^{(k+1)} = m_{\beta,j}^{(k+1)2} + \Sigma_{\beta,jj}^{(k+1)}$ for $j=1,\dots,p$.
+    \Statex \quad (b) Define $f(\vect{\eta})$ using $S_j^{(k+1)}$ and gradients $\nabla f(\vect{\eta})$ as above.
+    \Statex \quad (c) Use Newton iterations to find 
+      $\displaystyle \hat{\vect{\eta}}^{(k+1)} = \arg\max_{\vect{\eta}} f(\vect{\eta})$.
+    \Statex \quad (d) Compute 
+      $\mat{\Sigma}_\eta^{(k+1)} = -\big[\nabla^2 f(\hat{\vect{\eta}}^{(k+1)})\big]^{-1}$.
+    \Statex \quad (e) Set $q_\eta^{(k+1)}(\vect{\eta}) \approx \N(\hat{\vect{\eta}}^{(k+1)},\mat{\Sigma}_\eta^{(k+1)})$.
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+This algorithm alternates between:
+\begin{itemize}
+  \item Conjugate updates for $(q_\beta,q_\sigma)$, given approximate moments $D_j$,
+  \item A Laplace approximation for the non-conjugate scale block $q_\eta$,
+  \item A Delta-method correction for the expectations $D_j = \E_{q_\eta}[1/V_j]$.
+\end{itemize}
+
+\section{Evidence Lower Bound (ELBO)}
+
+For the mean-field variational family
+\[
+  q(\theta) = q_\beta(\vect{\beta})\,q_\sigma(\sigma^2)\,q_\eta(\vect{\eta}),
+\]
+the evidence lower bound (ELBO) is
+\begin{equation}
+  \mathcal{L}(q)
+  = \E_q[\log p(\vect{y},\theta)] - \E_q[\log q(\theta)].
+\end{equation}
+Using the model and factorization above, and working up to an additive constant independent of the variational parameters, we can write
+\begin{equation}
+  \mathcal{L}(q)
+  \approx
+  \underbrace{\E_{q_\beta,q_\sigma}[\log p(\vect{y}\mid\vect{\beta},\sigma^2)]}_{\text{likelihood}}
+  + \underbrace{\E_{q_\sigma}[\log p(\sigma^2)]}_{\text{noise prior}}
+  + \underbrace{\E_{q_\eta}[f(\vect{\eta})]}_{\text{scale block}}
+  - \underbrace{\E_{q_\beta}[\log q_\beta]}_{\text{entropy of }q_\beta}
+  - \underbrace{\E_{q_\sigma}[\log q_\sigma]}_{\text{entropy of }q_\sigma}
+  - \underbrace{\E_{q_\eta}[\log q_\eta]}_{\text{entropy of }q_\eta},
+\end{equation}
+where $f(\vect{\eta})$ is the non-conjugate log-target defined in the previous section.
+
+\subsection*{Components in Closed Form}
+
+Recall
+\[
+  q_\beta(\vect{\beta}) = \N_p(\vect{m}_\beta,\mat{\Sigma}_\beta),
+  \qquad
+  q_\sigma(\sigma^2) = \IG(\tilde a_\sigma,\tilde b_\sigma),
+  \qquad
+  q_\eta(\vect{\eta}) \approx \N_{p+2}(\hat{\vect{\eta}},\mat{\Sigma}_\eta),
+\]
+with
+\begin{equation}
+  A := \E_{q_\sigma}\!\left[\frac{1}{\sigma^2}\right]
+  = \frac{\tilde a_\sigma}{\tilde b_\sigma},
+  \qquad
+  S := \E_{q_\beta}\big[\Vert \vect{y} - \mat{X}\vect{\beta}\Vert^2\big]
+  = \Vert \vect{y} - \mat{X}\vect{m}_\beta\Vert^2
+  + \mathrm{tr}\big(\mat{X}\mat{\Sigma}_\beta\mat{X}^\top\big).
+\end{equation}
+For the inverse-gamma,
+\begin{equation}
+  \E_{q_\sigma}[\log \sigma^2] = \log \tilde b_\sigma - \psi(\tilde a_\sigma),
+\end{equation}
+where $\psi(\cdot)$ is the digamma function.
+
+\paragraph{Likelihood term.}
+\[
+  \log p(\vect{y}\mid\vect{\beta},\sigma^2)
+  = -\frac{n}{2}\log(2\pi)
+    -\frac{n}{2}\log\sigma^2
+    -\frac{1}{2\sigma^2}\Vert \vect{y}-\mat{X}\vect{\beta}\Vert^2,
+\]
+so
+\begin{equation}
+  \E_{q_\beta,q_\sigma}[\log p(\vect{y}\mid\vect{\beta},\sigma^2)]
+  = -\frac{n}{2}\log(2\pi)
+    -\frac{n}{2}\big(\log \tilde b_\sigma - \psi(\tilde a_\sigma)\big)
+    -\frac{1}{2} A S.
+\end{equation}
+
+\paragraph{Noise prior term.}
+For $\sigma^2 \sim \IG(a_\sigma,b_\sigma)$ with density
+\(
+  p(\sigma^2) \propto (\sigma^2)^{-a_\sigma-1}\exp(-b_\sigma/\sigma^2),
+\)
+\[
+  \log p(\sigma^2)
+  = a_\sigma \log b_\sigma - \log\Gamma(a_\sigma)
+    - (a_\sigma+1)\log\sigma^2
+    - \frac{b_\sigma}{\sigma^2},
+\]
+hence
+\begin{equation}
+  \E_{q_\sigma}[\log p(\sigma^2)]
+  = a_\sigma \log b_\sigma - \log\Gamma(a_\sigma)
+    - (a_\sigma+1)\big(\log \tilde b_\sigma - \psi(\tilde a_\sigma)\big)
+    - b_\sigma A.
+\end{equation}
+
+\paragraph{Scale-block term.}
+With
+\[
+  f(\vect{\eta})
+  = \sum_{j=1}^p f_j(u_j,u_\tau,u_\kappa)
+    + f_{\mathrm{global}}(u_\tau,u_\kappa),
+\]
+defined earlier, we approximate $\E_{q_\eta}[f(\vect{\eta})]$ by a Laplace--Delta expansion around the mode $\hat{\vect{\eta}}$:
+\begin{equation}
+  \E_{q_\eta}[f(\vect{\eta})]
+  \;\approx\;
+  f(\hat{\vect{\eta}})
+  + \frac12\,\mathrm{tr}\!\big(\nabla^2 f(\hat{\vect{\eta}})\,\mat{\Sigma}_\eta\big),
+\end{equation}
+where $\nabla^2 f(\hat{\vect{\eta}})$ is the Hessian used in the Laplace approximation and $\mat{\Sigma}_\eta = -[\nabla^2 f(\hat{\vect{\eta}})]^{-1}$.
+
+\paragraph{Entropy terms.}
+
+For the Gaussian factor $q_\beta$,
+\begin{equation}
+  \E_{q_\beta}[\log q_\beta]
+  = -\frac12\big(p\log(2\pi) + \log|\mat{\Sigma}_\beta| + p\big),
+  \quad\Rightarrow\quad
+  -\E_{q_\beta}[\log q_\beta]
+  = \frac12\big(p\log(2\pi e) + \log|\mat{\Sigma}_\beta|\big).
+\end{equation}
+
+For the inverse-gamma factor $q_\sigma(\sigma^2) = \IG(\tilde a_\sigma,\tilde b_\sigma)$,
+\begin{align}
+  \E_{q_\sigma}[\log q_\sigma]
+  &= \tilde a_\sigma \log \tilde b_\sigma - \log\Gamma(\tilde a_\sigma)
+    - (\tilde a_\sigma+1)\big(\log \tilde b_\sigma - \psi(\tilde a_\sigma)\big)
+    - \tilde b_\sigma A, \\
+  -\E_{q_\sigma}[\log q_\sigma]
+  &= -\tilde a_\sigma \log \tilde b_\sigma + \log\Gamma(\tilde a_\sigma)
+    + (\tilde a_\sigma+1)\big(\log \tilde b_\sigma - \psi(\tilde a_\sigma)\big)
+    + \tilde b_\sigma A.
+\end{align}
+
+For the Gaussian factor $q_\eta(\vect{\eta}) \approx \N_{p+2}(\hat{\vect{\eta}},\mat{\Sigma}_\eta)$,
+\begin{equation}
+  \E_{q_\eta}[\log q_\eta]
+  = -\frac12\big((p+2)\log(2\pi) + \log|\mat{\Sigma}_\eta| + (p+2)\big),
+  \quad\Rightarrow\quad
+  -\E_{q_\eta}[\log q_\eta]
+  = \frac12\big((p+2)\log(2\pi e) + \log|\mat{\Sigma}_\eta|\big).
+\end{equation}
+
+\subsection*{Practical ELBO for Monitoring Convergence}
+
+Collecting the pieces and omitting additive constants independent of
+$(\vect{m}_\beta,\mat{\Sigma}_\beta,\tilde a_\sigma,\tilde b_\sigma,\hat{\vect{\eta}},\mat{\Sigma}_\eta)$, an implementable approximation to the ELBO is
+\begin{align}
+  \mathcal{L}(q)
+  \approx\;
+  &-\frac{n}{2}\big(\log \tilde b_\sigma - \psi(\tilde a_\sigma)\big)
+   -\frac{1}{2} A S
+   -(a_\sigma+1)\big(\log \tilde b_\sigma - \psi(\tilde a_\sigma)\big)
+   - b_\sigma A \nonumber\\
+  &+ f(\hat{\vect{\eta}})
+   + \frac12\,\mathrm{tr}\!\big(\nabla^2 f(\hat{\vect{\eta}})\,\mat{\Sigma}_\eta\big) \nonumber\\
+  &+ \frac12\big(p\log(2\pi e) + \log|\mat{\Sigma}_\beta|\big)
+   -\E_{q_\sigma}[\log q_\sigma]
+   + \frac12\big((p+2)\log(2\pi e) + \log|\mat{\Sigma}_\eta|\big)
+   \;+\; \text{const},
+\end{align}
+where $A$, $S$, $f(\cdot)$, $\hat{\vect{\eta}}$, and $\mat{\Sigma}_\eta$ are as defined above. In practice, one may drop the explicit constants and track only relative changes in $\mathcal{L}(q)$ as a stopping criterion for the VB--LD iterations.
+
+
+\end{document}
