@@ -1215,4 +1215,114 @@ In particular, the difference between the exAL and AL formulations lies in the l
 and in the auxiliary-latent structure $(\vect{v},\vect{s},\gamma)$, but \emph{not} in the
 exact conditional algebra of the RHS latent scale block once $\vect{\beta}$ is held fixed.
 
+\subsection{Full joint log-kernel under the AL likelihood}
+
+Under the AL likelihood, the full joint log-kernel is obtained by dropping all additive
+constants that do not depend on
+\[
+  (\vect{\beta},\vect{\lambda},\tau,c^2,\sigma,\vect{v}).
+\]
+Using the normal--exponential mixture representation of the AL likelihood, we have
+\begin{align}
+  &\log p(\vect{y},\vect{v},\vect{\beta},\vect{\lambda},\tau,c^2,\sigma)
+  \nonumber\\
+  &\qquad\propto
+  -\frac{1}{2}\sum_{i=1}^n \log(\sigma B_q v_i)
+  -\frac{1}{2}\sum_{i=1}^n
+  \frac{
+    \big(
+      y_i-\vect{x}_i^\top\vect{\beta}-A_q v_i
+    \big)^2
+  }{
+    \sigma B_q v_i
+  }
+  \nonumber\\
+  &\qquad\quad
+  -\sum_{i=1}^n \log \sigma
+  -\sum_{i=1}^n \frac{v_i}{\sigma}
+  \nonumber\\
+  &\qquad\quad
+  -\frac{1}{2}\sum_{j=1}^p \log V_j(\lambda_j,\tau,c^2)
+  -\frac{1}{2}\sum_{j=1}^p \frac{\beta_j^2}{V_j(\lambda_j,\tau,c^2)}
+  \nonumber\\
+  &\qquad\quad
+  -\sum_{j=1}^p \log(1+\lambda_j^2)
+  -\log\!\left(1+\frac{\tau^2}{\tau_0^2}\right)
+  -\left(\frac{\nu}{2}+1\right)\log c^2
+  -\frac{\nu s_0^2}{2c^2}
+  + \log p(\sigma).
+  \label{eq:log-kernel-full-joint-AL}
+\end{align}
+
+If $\sigma \sim \IG(a_\sigma,b_\sigma)$ with kernel
+\[
+  p(\sigma) \propto \sigma^{-(a_\sigma+1)}
+  \exp\!\left(-\frac{b_\sigma}{\sigma}\right), \qquad \sigma>0,
+\]
+then
+\begin{align}
+  &\log p(\vect{y},\vect{v},\vect{\beta},\vect{\lambda},\tau,c^2,\sigma)
+  \nonumber\\
+  &\qquad\propto
+  -\frac{1}{2}\sum_{i=1}^n \log(\sigma B_q v_i)
+  -\frac{1}{2}\sum_{i=1}^n
+  \frac{
+    \big(
+      y_i-\vect{x}_i^\top\vect{\beta}-A_q v_i
+    \big)^2
+  }{
+    \sigma B_q v_i
+  }
+  \nonumber\\
+  &\qquad\quad
+  -\sum_{i=1}^n \log \sigma
+  -\sum_{i=1}^n \frac{v_i}{\sigma}
+  \nonumber\\
+  &\qquad\quad
+  -\frac{1}{2}\sum_{j=1}^p \log V_j(\lambda_j,\tau,c^2)
+  -\frac{1}{2}\sum_{j=1}^p \frac{\beta_j^2}{V_j(\lambda_j,\tau,c^2)}
+  \nonumber\\
+  &\qquad\quad
+  -\sum_{j=1}^p \log(1+\lambda_j^2)
+  -\log\!\left(1+\frac{\tau^2}{\tau_0^2}\right)
+  -\left(\frac{\nu}{2}+1\right)\log c^2
+  -\frac{\nu s_0^2}{2c^2}
+  \nonumber\\
+  &\qquad\quad
+  -(a_\sigma+1)\log \sigma
+  -\frac{b_\sigma}{\sigma}.
+  \label{eq:log-kernel-full-joint-AL-IGsigma}
+\end{align}
+
+Combining the $\log \sigma$ terms yields the equivalent compact form
+\begin{align}
+  &\log p(\vect{y},\vect{v},\vect{\beta},\vect{\lambda},\tau,c^2,\sigma)
+  \nonumber\\
+  &\qquad\propto
+  -\frac{1}{2}\sum_{i=1}^n \log(B_q v_i)
+  -\left(\frac{3n}{2}+a_\sigma+1\right)\log \sigma
+  \nonumber\\
+  &\qquad\quad
+  -\frac{1}{2}\sum_{i=1}^n
+  \frac{
+    \big(
+      y_i-\vect{x}_i^\top\vect{\beta}-A_q v_i
+    \big)^2
+  }{
+    \sigma B_q v_i
+  }
+  -\sum_{i=1}^n \frac{v_i}{\sigma}
+  \nonumber\\
+  &\qquad\quad
+  -\frac{1}{2}\sum_{j=1}^p \log V_j(\lambda_j,\tau,c^2)
+  -\frac{1}{2}\sum_{j=1}^p \frac{\beta_j^2}{V_j(\lambda_j,\tau,c^2)}
+  \nonumber\\
+  &\qquad\quad
+  -\sum_{j=1}^p \log(1+\lambda_j^2)
+  -\log\!\left(1+\frac{\tau^2}{\tau_0^2}\right)
+  -\left(\frac{\nu}{2}+1\right)\log c^2
+  -\frac{\nu s_0^2}{2c^2}.
+  \label{eq:log-kernel-full-joint-AL-compact}
+\end{align}
+
 \end{document}
